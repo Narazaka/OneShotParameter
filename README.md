@@ -1,8 +1,9 @@
 # One Shot Parameter
 
-トグルメニュー等を一定時間後自動的に元に戻す設定をするツール。
+一発だけ再生する音声やパーティクル等を簡単に実装できるコンポーネント
+Components for easy implementation of audio, particles, etc. that play only once
 
-単発実行するパーティクルや音声等に使えます。
+（BoolやIntパラメーターが変化後指定時間たったら自動でリセットされるようになるやつです）
 
 ![One Shot Parameter](OneShotParameter.png)
 
