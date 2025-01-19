@@ -4,6 +4,8 @@
 
 単発実行するパーティクルや音声等に使えます。
 
+![One Shot Parameter](OneShotParameter.png)
+
 ## Install
 
 ### VCC用インストーラーunitypackageによる方法（おすすめ）
