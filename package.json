@@ -1,6 +1,6 @@
 {
   "name": "net.narazaka.vrchat.one-shot-parameter",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "displayName": "One Shot Parameter",
   "description": "Components for easy implementation of audio, particles, etc. that play only once 一発だけ再生する音声やパーティクル等を簡単に実装できるコンポーネント",
   "author": {
