@@ -5,7 +5,7 @@ Components for easy implementation of audio, particles, etc. that play only once
 
 （BoolやIntパラメーターが変化後指定時間たったら自動でリセットされるようになるやつです）
 
-![One Shot Parameter](OneShotParameter.png)
+![One Shot Parameter](doc~/OneShotParameter.png)
 
 ## Install
 
