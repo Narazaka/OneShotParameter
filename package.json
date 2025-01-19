@@ -2,7 +2,7 @@
   "name": "net.narazaka.vrchat.one-shot-parameter",
   "version": "1.0.0",
   "displayName": "One Shot Parameter",
-  "description": "One Shot Parameter",
+  "description": "A tool to set toggle menus etc. to automatically undo after a certain period of time. トグルメニュー等を一定時間後自動的に元に戻す設定をするツール。",
   "author": {
     "name": "Narazaka",
     "url": "https://github.com/Narazaka"
@@ -12,6 +12,7 @@
   "url" : "https://github.com/Narazaka/OneShotParameter.git",
   "unity": "2022.3",
   "vpmDependencies": {
-    "com.vrchat.worlds": ">=3.7.4"
+    "com.vrchat.worlds": ">=3",
+    "nadena.dev.modular-avatar": ">= 1.8.0 <2.0.0-a"
   }
 }
