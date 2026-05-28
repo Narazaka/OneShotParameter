@@ -16,15 +16,22 @@ namespace Narazaka.VRChat.OneShotParameter.Editor
         SerializedProperty ParameterDefaultValue;
         SerializedProperty Duration;
         SerializedProperty LocalOnly;
-        AvatarParametersUtilEditor ParameterUtil;
+        SerializedProperty PreserveHierarchy;
+
+        AvatarParametersUtilEditor ParameterUtil =>
+            PreserveHierarchy != null && PreserveHierarchy.boolValue
+                ? AvatarParametersUtilEditor.GetForHierarchy(serializedObject)
+                : AvatarParametersUtilEditor.GetForAvatarRoot(serializedObject);
 
         void OnEnable()
         {
-            ParameterName = serializedObject.FindProperty("ParameterName");
-            ParameterDefaultValue = serializedObject.FindProperty("ParameterDefaultValue");
-            Duration = serializedObject.FindProperty("Duration");
-            LocalOnly = serializedObject.FindProperty("LocalOnly");
-            ParameterUtil = AvatarParametersUtilEditor.Get(serializedObject);
+            ParameterName = serializedObject.FindProperty(nameof(OneShotParameter.ParameterName));
+            ParameterDefaultValue = serializedObject.FindProperty(nameof(OneShotParameter.ParameterDefaultValue));
+            Duration = serializedObject.FindProperty(nameof(OneShotParameter.Duration));
+            LocalOnly = serializedObject.FindProperty(nameof(OneShotParameter.LocalOnly));
+            PreserveHierarchy = serializedObject.FindProperty(nameof(OneShotParameter.PreserveHierarchy));
+            AvatarParametersUtilEditor.GetForAvatarRoot(serializedObject, forceUpdate: true);
+            AvatarParametersUtilEditor.GetForHierarchy(serializedObject, forceUpdate: true);
         }
 
         public override void OnInspectorGUI()
@@ -45,6 +52,12 @@ namespace Narazaka.VRChat.OneShotParameter.Editor
             EditorGUILayout.PropertyField(Duration, new GUIContent(Lang.Duration));
             EditorGUILayout.PropertyField(LocalOnly, new GUIContent(Lang.LocalOnly));
 
+            rect = EditorGUILayout.GetControlRect();
+            var label = new GUIContent(Lang.PreserveHierarchy, Lang.PreserveHierarchyDescription);
+            EditorGUI.BeginProperty(rect, label, PreserveHierarchy);
+            PreserveHierarchy.boolValue = !EditorGUI.Toggle(rect, label, !PreserveHierarchy.boolValue);
+            EditorGUI.EndProperty();
+
             serializedObject.ApplyModifiedProperties();
         }
 
@@ -57,12 +70,16 @@ namespace Narazaka.VRChat.OneShotParameter.Editor
         {
             static bool IsJa => LanguagePrefs.Language == "ja-jp";
             static string L(string ja, string en) => IsJa ? ja : en;
-            public static string ParameterName => L("ƒpƒ‰ƒ[ƒ^–¼", "Parameter Name");
-            public static string ParameterDefaultValue => L("ƒpƒ‰ƒ[ƒ^‰Šú’l", "Parameter Default Value");
-            public static string ParameterDefaultValueDescription => L("‚±‚Ì’l‚©‚ç•Ï‰»‚µ‚Ä‚©‚çƒŠƒZƒbƒgŠÔ‚ªŒo‰ß‚·‚é‚ÆAƒŠƒZƒbƒg‚³‚ê‚ÄÄ‚Ñ‚±‚Ì’l‚É‚È‚è‚Ü‚·B", "After the reset time has elapsed since the change from this value, it will be reset to this value again.");
-            public static string Duration => L("ƒŠƒZƒbƒgŠÔ(•b)", "Reset Time(s)");
-            public static string LocalOnly => L("ƒ[ƒJƒ‹‚Ì‚İ‚ÅÀs", "Local Only");
-            public static string BoolOrInt => L("Bool ‚© Int ‚ğw’è‚µ‚Ä‰º‚³‚¢", "Bool or Int allowed");
+            public static string ParameterName => L("ãƒ‘ãƒ©ãƒ¡ãƒ¼ã‚¿å", "Parameter Name");
+            public static string ParameterDefaultValue => L("ãƒ‘ãƒ©ãƒ¡ãƒ¼ã‚¿åˆæœŸå€¤", "Parameter Default Value");
+            public static string ParameterDefaultValueDescription => L("ã“ã®å€¤ã‹ã‚‰å¤‰åŒ–ã—ã¦ã‹ã‚‰ãƒªã‚»ãƒƒãƒˆæ™‚é–“ãŒçµŒéã™ã‚‹ã¨ã€ãƒªã‚»ãƒƒãƒˆã•ã‚Œã¦å†ã³ã“ã®å€¤ã«ãªã‚Šã¾ã™ã€‚", "After the reset time has elapsed since the change from this value, it will be reset to this value again.");
+            public static string Duration => L("ãƒªã‚»ãƒƒãƒˆæ™‚é–“(ç§’)", "Reset Time(s)");
+            public static string LocalOnly => L("ãƒ­ãƒ¼ã‚«ãƒ«ã®ã¿ã§å®Ÿè¡Œ", "Local Only");
+            public static string BoolOrInt => L("Bool ã‹ Int ã‚’æŒ‡å®šã—ã¦ä¸‹ã•ã„", "Bool or Int allowed");
+            public static string PreserveHierarchy => L("éšå±¤ã‚’ç„¡è¦–", "Ignore Hierarchy");
+            public static string PreserveHierarchyDescription => L(
+                "å¤ã„æŒ™å‹•ã§ã™ã€‚MA Parametersã®åå‰å¤‰æ›´ã•ã‚ŒãŸéšå±¤å†…ã«ã„ã‚‹ã¨ãã‚‚å¤–ã®åå‰ã‚’ä½¿ã„ã¾ã™ã€‚",
+                "Old Behavior. Even when you are in the renamed hierarchy of MA Parameters, use the name outside.");
         }
     }
 }

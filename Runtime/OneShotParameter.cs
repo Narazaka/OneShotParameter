@@ -9,5 +9,11 @@ namespace Narazaka.VRChat.OneShotParameter
         [SerializeField] public float ParameterDefaultValue;
         [SerializeField] public float Duration = 1f;
         [SerializeField] public bool LocalOnly = true;
+        [SerializeField] public bool PreserveHierarchy;
+
+        void Reset()
+        {
+            PreserveHierarchy = true;
+        }
     }
 }

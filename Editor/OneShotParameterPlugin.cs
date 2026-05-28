@@ -4,6 +4,7 @@ using UnityEngine;
 using nadena.dev.ndmf;
 using nadena.dev.modular_avatar.core;
 using Narazaka.VRChat.AvatarParametersUtil;
+using Narazaka.VRChat.AvatarParametersUtil.Editor;
 using System.Linq;
 using UnityEditor.Animations;
 using VRC.SDK3.Avatars.Components;
@@ -24,92 +25,113 @@ namespace Narazaka.VRChat.OneShotParameter.Editor
             {
                 var oneShotParameters = ctx.AvatarRootObject.GetComponentsInChildren<OneShotParameter>(true);
                 if (oneShotParameters.Length == 0) return;
-                var parameterByName = ParameterInfo.ForContext(ctx).GetParametersForObject(ctx.AvatarRootObject).ToDistinctSubParameters().ToDictionary(p => p.EffectiveName);
-                var parameterNames = oneShotParameters.Select(d => d.ParameterName).Distinct().ToArray();
-                if (parameterNames.Length != oneShotParameters.Length)
+
+                var nonHierarchical = oneShotParameters.Where(p => !p.PreserveHierarchy).ToArray();
+                if (nonHierarchical.Length > 0)
                 {
-                    throw new System.InvalidOperationException("Duplicate parameter names");
-                }
-                var notFoundParameters = parameterNames.Where(p => !parameterByName.ContainsKey(p)).ToArray();
-                if (notFoundParameters.Length > 0)
-                {
-                    throw new System.InvalidOperationException($"Parameters {string.Join(", ", notFoundParameters)} not found");
-                }
-                var invalidTypeParameters = parameterNames.Where(p => parameterByName[p].ParameterType != AnimatorControllerParameterType.Bool && parameterByName[p].ParameterType != AnimatorControllerParameterType.Int).ToArray();
-                if (invalidTypeParameters.Length > 0)
-                {
-                    throw new System.InvalidOperationException($"Parameters {string.Join(", ", invalidTypeParameters)} are not bool or int");
+                    BuildOneShotParameter(ctx, nonHierarchical, ctx.AvatarRootObject);
                 }
 
-                var nopClip = MakeEmptyAnimationClip(1f / 60);
-                var oneSecClip = MakeEmptyAnimationClip(1f);
-                var animator = new AnimatorController();
-                foreach (var parameterName in parameterNames)
+                var hierarchicalByObject = oneShotParameters.Where(p => p.PreserveHierarchy).GroupBy(p => p.gameObject);
+                foreach (var groupSet in hierarchicalByObject)
                 {
-                    if (parameterByName.TryGetValue(parameterName, out var parameter))
-                    {
-                        animator.AddParameter(parameter.ToAnimatorControllerParameter());
-                    }
+                    BuildOneShotParameter(ctx, groupSet.ToArray(), groupSet.Key);
                 }
-
-                foreach (var oneShotParameter in oneShotParameters)
-                {
-                    var parameter = parameterByName[oneShotParameter.ParameterName];
-                    var layer = AddLastLayer(animator, $"One Shot Parameter for {oneShotParameter.ParameterName}");
-
-                    layer.stateMachine.entryPosition = new Vector3(0, 0, 0);
-                    layer.stateMachine.anyStatePosition = new Vector3(0, -100, 0);
-                    layer.stateMachine.exitPosition = new Vector3(0, 400, 0);
-                    var idleState = AddConfiguredState(layer.stateMachine, "idle", nopClip, new Vector3(0, 100, 0));
-                    layer.stateMachine.defaultState = idleState;
-                    var waitState = AddConfiguredState(layer.stateMachine, "wait", oneSecClip, new Vector3(0, 200, 0));
-                    var resetState = AddConfiguredState(layer.stateMachine, "reset", nopClip, new Vector3(0, 300, 0));
-                    resetState.behaviours = new StateMachineBehaviour[]
-                    {
-                        new VRCAvatarParameterDriver
-                        {
-                            parameters = new List<VRC.SDKBase.VRC_AvatarParameterDriver.Parameter>
-                            {
-                                new VRC.SDKBase.VRC_AvatarParameterDriver.Parameter
-                                {
-                                    type = VRC.SDKBase.VRC_AvatarParameterDriver.ChangeType.Set,
-                                    name = oneShotParameter.ParameterName,
-                                    value = oneShotParameter.ParameterDefaultValue,
-                                },
-                            },
-                            localOnly = oneShotParameter.LocalOnly,
-                        },
-                    };
-
-                    var toWait = idleState.AddTransition(waitState);
-                    toWait.hasExitTime = false;
-                    toWait.exitTime = 0f;
-                    toWait.hasFixedDuration = true;
-                    toWait.duration = 0f;
-                    AddCondition(toWait, oneShotParameter, parameter, false);
-                    var toResetByCondition = waitState.AddTransition(resetState);
-                    toResetByCondition.hasExitTime = false;
-                    toResetByCondition.exitTime = 0f;
-                    toResetByCondition.hasFixedDuration = true;
-                    toResetByCondition.duration = 0f;
-                    AddCondition(toResetByCondition, oneShotParameter, parameter, true);
-                    var toResetByTime = waitState.AddTransition(resetState);
-                    toResetByTime.hasExitTime = true;
-                    toResetByTime.exitTime = oneShotParameter.Duration;
-                    toResetByTime.hasFixedDuration = true;
-                    toResetByTime.duration = 0f;
-                    var toExit = resetState.AddExitTransition();
-                    toExit.hasExitTime = true;
-                    toExit.exitTime = 0f;
-                    toExit.hasFixedDuration = true;
-                    toExit.duration = 0f;
-                    Object.DestroyImmediate(oneShotParameter);
-                }
-
-                var mergeAnimator = ctx.AvatarRootObject.AddComponent<ModularAvatarMergeAnimator>();
-                mergeAnimator.animator = animator;
-                mergeAnimator.matchAvatarWriteDefaults = true;
             });
+        }
+
+        void BuildOneShotParameter(BuildContext ctx, IList<OneShotParameter> oneShotParameters, GameObject obj)
+        {
+            var info = ParameterInfo.ForContext(ctx);
+            var rawParameters = ReferenceEquals(obj, ctx.AvatarRootObject)
+                ? info.GetParametersForObject(obj)
+                : AvatarParametersHierarchy.GetParametersAtHierarchy(info, ctx.AvatarRootObject, obj);
+            var parameterByName = rawParameters.ToDistinctSubParameters().ToDictionary(p => p.EffectiveName);
+
+            var parameterNames = oneShotParameters.Select(d => d.ParameterName).Distinct().ToArray();
+            if (parameterNames.Length != oneShotParameters.Count)
+            {
+                throw new System.InvalidOperationException("Duplicate parameter names");
+            }
+            var notFoundParameters = parameterNames.Where(p => !parameterByName.ContainsKey(p)).ToArray();
+            if (notFoundParameters.Length > 0)
+            {
+                throw new System.InvalidOperationException($"Parameters {string.Join(", ", notFoundParameters)} not found");
+            }
+            var invalidTypeParameters = parameterNames.Where(p => parameterByName[p].ParameterType != AnimatorControllerParameterType.Bool && parameterByName[p].ParameterType != AnimatorControllerParameterType.Int).ToArray();
+            if (invalidTypeParameters.Length > 0)
+            {
+                throw new System.InvalidOperationException($"Parameters {string.Join(", ", invalidTypeParameters)} are not bool or int");
+            }
+
+            var nopClip = MakeEmptyAnimationClip(1f / 60);
+            var oneSecClip = MakeEmptyAnimationClip(1f);
+            var animator = new AnimatorController();
+            foreach (var parameterName in parameterNames)
+            {
+                if (parameterByName.TryGetValue(parameterName, out var parameter))
+                {
+                    animator.AddParameter(parameter.ToAnimatorControllerParameter());
+                }
+            }
+
+            foreach (var oneShotParameter in oneShotParameters)
+            {
+                var parameter = parameterByName[oneShotParameter.ParameterName];
+                var layer = AddLastLayer(animator, $"One Shot Parameter for {oneShotParameter.ParameterName}");
+
+                layer.stateMachine.entryPosition = new Vector3(0, 0, 0);
+                layer.stateMachine.anyStatePosition = new Vector3(0, -100, 0);
+                layer.stateMachine.exitPosition = new Vector3(0, 400, 0);
+                var idleState = AddConfiguredState(layer.stateMachine, "idle", nopClip, new Vector3(0, 100, 0));
+                layer.stateMachine.defaultState = idleState;
+                var waitState = AddConfiguredState(layer.stateMachine, "wait", oneSecClip, new Vector3(0, 200, 0));
+                var resetState = AddConfiguredState(layer.stateMachine, "reset", nopClip, new Vector3(0, 300, 0));
+                resetState.behaviours = new StateMachineBehaviour[]
+                {
+                    new VRCAvatarParameterDriver
+                    {
+                        parameters = new List<VRC.SDKBase.VRC_AvatarParameterDriver.Parameter>
+                        {
+                            new VRC.SDKBase.VRC_AvatarParameterDriver.Parameter
+                            {
+                                type = VRC.SDKBase.VRC_AvatarParameterDriver.ChangeType.Set,
+                                name = oneShotParameter.ParameterName,
+                                value = oneShotParameter.ParameterDefaultValue,
+                            },
+                        },
+                        localOnly = oneShotParameter.LocalOnly,
+                    },
+                };
+
+                var toWait = idleState.AddTransition(waitState);
+                toWait.hasExitTime = false;
+                toWait.exitTime = 0f;
+                toWait.hasFixedDuration = true;
+                toWait.duration = 0f;
+                AddCondition(toWait, oneShotParameter, parameter, false);
+                var toResetByCondition = waitState.AddTransition(resetState);
+                toResetByCondition.hasExitTime = false;
+                toResetByCondition.exitTime = 0f;
+                toResetByCondition.hasFixedDuration = true;
+                toResetByCondition.duration = 0f;
+                AddCondition(toResetByCondition, oneShotParameter, parameter, true);
+                var toResetByTime = waitState.AddTransition(resetState);
+                toResetByTime.hasExitTime = true;
+                toResetByTime.exitTime = oneShotParameter.Duration;
+                toResetByTime.hasFixedDuration = true;
+                toResetByTime.duration = 0f;
+                var toExit = resetState.AddExitTransition();
+                toExit.hasExitTime = true;
+                toExit.exitTime = 0f;
+                toExit.hasFixedDuration = true;
+                toExit.duration = 0f;
+                Object.DestroyImmediate(oneShotParameter);
+            }
+
+            var mergeAnimator = obj.AddComponent<ModularAvatarMergeAnimator>();
+            mergeAnimator.animator = animator;
+            mergeAnimator.matchAvatarWriteDefaults = true;
         }
 
         static AnimationClip MakeEmptyAnimationClip(float duration)
