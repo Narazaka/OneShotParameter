@@ -8,6 +8,8 @@
     "url": "https://github.com/Narazaka"
   },
   "license": "Zlib",
+  "documentationUrl": "https://github.com/Narazaka/OneShotParameter#one-shot-parameter",
+  "changelogUrl": "https://github.com/Narazaka/OneShotParameter#changelog",
   "type": "tool",
   "url" : "https://github.com/Narazaka/OneShotParameter.git",
   "unity": "2022.3",
