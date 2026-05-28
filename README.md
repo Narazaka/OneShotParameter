@@ -30,6 +30,13 @@ https://github.com/Narazaka/OneShotParameter/releases/latest から `net.narazak
   - Avatar Menu Creatorではデフォルトでオブジェクト名がパラメーター名です。
 3. 音の継続秒数を確認し、「リセット時間(秒)」に指定します。
 
+## Changelog
+
+- 1.1.0-beta.0
+  - GameObject階層ごとのパラメーター（リネーム）に対応
+- 1.0.3
+  - リリース
+
 ## License
 
 [Zlib License](LICENSE.txt)
