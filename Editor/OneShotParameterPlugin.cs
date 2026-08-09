@@ -94,7 +94,7 @@ namespace Narazaka.VRChat.OneShotParameter.Editor
             foreach (var oneShotParameter in oneShotParameters)
             {
                 var parameter = parameterByName[oneShotParameter.ParameterName];
-                var layer = AddLastLayer(animator, $"One Shot Parameter for {oneShotParameter.ParameterName}");
+                var layer = AddLastLayer(animator, $"One Shot Parameter for [{oneShotParameter.ParameterName}]");
 
                 layer.stateMachine.entryPosition = new Vector3(0, 0, 0);
                 layer.stateMachine.anyStatePosition = new Vector3(0, -100, 0);
