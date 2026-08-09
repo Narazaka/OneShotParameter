@@ -32,6 +32,10 @@ https://github.com/Narazaka/OneShotParameter/releases/latest から `net.narazak
 
 ## Changelog
 
+- 1.1.0
+  - GameObject階層ごとのパラメーター（リネーム）に対応
+  - パラメーター名が無いときのエラーを分かりやすく
+  - レイヤー名を変更
 - 1.1.0-beta.0
   - GameObject階層ごとのパラメーター（リネーム）に対応
 - 1.0.3
