@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using nadena.dev.ndmf;
+using nadena.dev.ndmf.localization;
 using nadena.dev.modular_avatar.core;
 using Narazaka.VRChat.AvatarParametersUtil;
 using Narazaka.VRChat.AvatarParametersUtil.Editor;
@@ -51,17 +52,32 @@ namespace Narazaka.VRChat.OneShotParameter.Editor
             var parameterNames = oneShotParameters.Select(d => d.ParameterName).Distinct().ToArray();
             if (parameterNames.Length != oneShotParameters.Count)
             {
-                throw new System.InvalidOperationException("Duplicate parameter names");
+                // 同名パラメーターを使う全コンポーネントを1件のエラーにまとめて参照付けする
+                foreach (var group in oneShotParameters.GroupBy(p => p.ParameterName).Where(g => g.Count() > 1))
+                {
+                    ReportParameterError(group, DuplicateParameterNamesTitle, group.Key);
+                }
+                return;
             }
             var notFoundParameters = parameterNames.Where(p => !parameterByName.ContainsKey(p)).ToArray();
             if (notFoundParameters.Length > 0)
             {
-                throw new System.InvalidOperationException($"Parameters {string.Join(", ", notFoundParameters)} not found");
+                var notFoundSet = new HashSet<string>(notFoundParameters);
+                foreach (var oneShotParameter in oneShotParameters.Where(p => notFoundSet.Contains(p.ParameterName)))
+                {
+                    ReportParameterError(new[] { oneShotParameter }, ParametersNotFoundTitle, oneShotParameter.ParameterName);
+                }
+                return;
             }
             var invalidTypeParameters = parameterNames.Where(p => parameterByName[p].ParameterType != AnimatorControllerParameterType.Bool && parameterByName[p].ParameterType != AnimatorControllerParameterType.Int).ToArray();
             if (invalidTypeParameters.Length > 0)
             {
-                throw new System.InvalidOperationException($"Parameters {string.Join(", ", invalidTypeParameters)} are not bool or int");
+                var invalidTypeSet = new HashSet<string>(invalidTypeParameters);
+                foreach (var oneShotParameter in oneShotParameters.Where(p => invalidTypeSet.Contains(p.ParameterName)))
+                {
+                    ReportParameterError(new[] { oneShotParameter }, InvalidParameterTypeTitle, oneShotParameter.ParameterName);
+                }
+                return;
             }
 
             var nopClip = MakeEmptyAnimationClip(1f / 60);
@@ -134,6 +150,24 @@ namespace Narazaka.VRChat.OneShotParameter.Editor
             mergeAnimator.matchAvatarWriteDefaults = true;
         }
 
+        static readonly istring DuplicateParameterNamesTitle = new istring("Duplicate parameter names", "パラメーター名が重複しています");
+        static readonly istring ParametersNotFoundTitle = new istring("Parameters not found", "パラメーターが見付かりませんでした");
+        static readonly istring InvalidParameterTypeTitle = new istring("Parameters are not bool or int", "パラメーターがbool型でもint型でもありません");
+
+        // components すべてに GameObject参照を付けつつ1件のエラーとして NDMF Console に報告する
+        static void ReportParameterError(IEnumerable<OneShotParameter> components, istring title, string detail)
+        {
+            var scopes = components.Select(c => ErrorReport.WithContextObject(c.gameObject)).ToArray();
+            try
+            {
+                ErrorReport.ReportError(new ValidationError(title, detail));
+            }
+            finally
+            {
+                foreach (var scope in scopes) scope.Dispose();
+            }
+        }
+
         static AnimationClip MakeEmptyAnimationClip(float duration)
         {
             var clip = new AnimationClip();
@@ -187,6 +221,35 @@ namespace Narazaka.VRChat.OneShotParameter.Editor
                 default:
                     throw new System.InvalidOperationException("Invalid parameter type");
             }
+        }
+
+        // NDMF標準の SimpleError を使うと、Error Report ウィンドウで他のエラーと同じ
+        // アイコン + タイトル + 内容のレイアウトになる。ローカライズ機構は使わないので、
+        // キーを素通しして常に渡された文字列（istring が現在の言語で解決した文字列）を
+        // そのまま表示する Localizer を充てる
+        static readonly Localizer PassthroughLocalizer = new Localizer("en-US", () => new List<(string, System.Func<string, string>)>
+        {
+            ("en-US", key => "{0}"),
+        });
+
+        class ValidationError : SimpleError
+        {
+            readonly istring title;
+            readonly string detail;
+
+            public ValidationError(istring title, string detail)
+            {
+                this.title = title;
+                this.detail = detail;
+            }
+
+            public override Localizer Localizer => PassthroughLocalizer;
+            public override string TitleKey => title;
+            public override string[] TitleSubst => new string[] { title };
+            public override string DetailsKey => detail;
+            public override string[] DetailsSubst => new[] { detail };
+            public override string FormatHint() => null;
+            public override ErrorSeverity Severity => ErrorSeverity.Error;
         }
     }
 }
